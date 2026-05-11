@@ -4,7 +4,7 @@ const EMAILJS_PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY'
 const EMAILJS_SERVICE_ID = 'YOUR_SERVICE_ID'
 const CLIENT_TEMPLATE_ID = 'YOUR_CLIENT_TEMPLATE_ID'
 const OWNER_TEMPLATE_ID  = 'YOUR_OWNER_TEMPLATE_ID'
-const OWNER_EMAIL        = 'owner@greenedgelandscaping.com'
+const OWNER_EMAIL        = 'demo@greenedgelandscaping.com'
 
 export async function sendConfirmationEmail(lead) {
   try {

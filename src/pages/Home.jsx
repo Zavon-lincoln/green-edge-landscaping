@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Leaf, Droplets, Scissors, Trees, Star, Phone, Mail, MapPin, ChevronRight, CheckCircle, Shield, Award, Sun, Menu, X } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Leaf, Droplets, Scissors, Trees, Star, Phone, Mail, MapPin, ChevronRight, CheckCircle, Shield, Award, Sun, Menu, X, ArrowRight } from 'lucide-react'
 import { saveLead } from '../utils/storage'
 import { sendConfirmationEmail, sendOwnerNotification } from '../utils/email'
 
@@ -24,13 +24,6 @@ const SERVICES = [
     title: 'Tree Service',
     desc: 'Professional trimming, shaping, removal, and stump grinding by ISA-certified arborists.',
   },
-]
-
-const STATS = [
-  { value: '10+', label: 'Years in Las Vegas' },
-  { value: '600+', label: 'Properties Served' },
-  { value: '5★', label: 'Average Rating' },
-  { value: '40%', label: 'Avg. Water Savings' },
 ]
 
 const TESTIMONIALS = [
@@ -73,7 +66,7 @@ const TIME_OPTIONS = [
 function Navbar() {
   const [open, setOpen] = useState(false)
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm anim-slide-down">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2">
@@ -98,7 +91,7 @@ function Navbar() {
           </button>
         </div>
         {open && (
-          <div className="md:hidden py-4 border-t border-gray-100 flex flex-col gap-3">
+          <div className="md:hidden py-4 border-t border-gray-100 flex flex-col gap-3 anim-fade-in">
             {['Services', 'About', 'Reviews', 'Contact'].map((item) => (
               <a key={item} href={`#${item.toLowerCase()}`} onClick={() => setOpen(false)}
                 className="text-sm font-medium text-gray-700 px-2 py-1 hover:text-brand-green">{item}</a>
@@ -112,28 +105,54 @@ function Navbar() {
 }
 
 function Hero() {
+  const statsRef = useRef(null)
+  const statsStarted = useRef(false)
+  const [yearsVal, setYearsVal] = useState(0)
+  const [propertiesVal, setPropertiesVal] = useState(0)
+
+  useEffect(() => {
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !statsStarted.current) {
+        statsStarted.current = true
+        const steps = 80; let i = 0
+        const t = setInterval(() => {
+          i++
+          const p = 1 - Math.pow(1 - i / steps, 3)
+          setYearsVal(Math.round(10 * p))
+          setPropertiesVal(Math.round(600 * p))
+          if (i >= steps) clearInterval(t)
+        }, 1800 / steps)
+      }
+    }, { threshold: 0.3 })
+    if (statsRef.current) obs.observe(statsRef.current)
+    return () => obs.disconnect()
+  }, [])
+
   return (
     <section className="relative min-h-screen flex items-center bg-brand-dark overflow-hidden">
       <div className="absolute inset-0 opacity-5"
         style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, #74C69D 1px, transparent 0)', backgroundSize: '32px 32px' }} />
       <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-brand-green/20 to-transparent" />
       <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-brand-light/10 rounded-full blur-3xl" />
+      {/* Floating decorative elements */}
+      <div className="absolute right-16 top-1/3 w-40 h-40 rounded-full border border-brand-light/10 anim-float hidden lg:block" />
+      <div className="absolute right-28 top-1/3 translate-y-12 w-20 h-20 rounded-full border border-brand-light/15 anim-float hidden lg:block" style={{ animationDelay: '1s' }} />
 
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 pt-24 pb-16">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 bg-brand-green/20 border border-brand-light/30 rounded-full px-4 py-2 mb-6">
+          <div className="inline-flex items-center gap-2 bg-brand-green/20 border border-brand-light/30 rounded-full px-4 py-2 mb-6 anim-fade-up delay-1">
             <div className="w-2 h-2 bg-brand-light rounded-full animate-pulse" />
             <span className="text-brand-light text-sm font-semibold">Serving the Entire Las Vegas Valley</span>
           </div>
-          <h1 className="font-display text-5xl md:text-6xl font-extrabold text-white leading-tight mb-6">
+          <h1 className="font-display text-5xl md:text-6xl font-extrabold text-white leading-tight mb-6 anim-fade-up delay-2">
             Beautiful Landscapes<br />
             <span className="text-brand-light">Built to Last.</span>
           </h1>
-          <p className="text-lg text-gray-400 mb-8 leading-relaxed max-w-xl">
+          <p className="text-lg text-gray-400 mb-8 leading-relaxed max-w-xl anim-fade-up delay-3">
             Green Edge Landscaping creates and maintains stunning outdoor spaces across Las Vegas —
             from lush lawn care to water-wise desert designs that thrive in Nevada's heat.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 mb-12">
+          <div className="flex flex-col sm:flex-row gap-4 mb-12 anim-fade-up delay-4">
             <a href="#booking" className="btn-primary text-base">
               Get a Free Quote <ChevronRight size={18} />
             </a>
@@ -142,13 +161,23 @@ function Hero() {
               <Phone size={18} /> (702) 555-0371
             </a>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {STATS.map((s) => (
-              <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center">
-                <p className="text-2xl font-display font-bold text-brand-light">{s.value}</p>
-                <p className="text-gray-400 text-xs mt-1">{s.label}</p>
-              </div>
-            ))}
+          <div ref={statsRef} className="grid grid-cols-2 sm:grid-cols-4 gap-4 anim-fade-up delay-5">
+            <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center">
+              <p className="text-2xl font-display font-bold text-brand-light">{yearsVal}+</p>
+              <p className="text-gray-400 text-xs mt-1">Years in Las Vegas</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center">
+              <p className="text-2xl font-display font-bold text-brand-light">{propertiesVal}+</p>
+              <p className="text-gray-400 text-xs mt-1">Properties Served</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center">
+              <p className="text-2xl font-display font-bold text-brand-light">5★</p>
+              <p className="text-gray-400 text-xs mt-1">Average Rating</p>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center">
+              <p className="text-2xl font-display font-bold text-brand-light">40%</p>
+              <p className="text-gray-400 text-xs mt-1">Avg. Water Savings</p>
+            </div>
           </div>
         </div>
       </div>
@@ -156,11 +185,11 @@ function Hero() {
   )
 }
 
-function Services() {
+function Services({ onServiceClick }) {
   return (
     <section id="services" className="py-20 bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-14">
+        <div className="text-center mb-14 reveal">
           <p className="section-label mb-3">What We Do</p>
           <h2 className="font-display text-4xl font-bold text-brand-dark mb-4">Complete Landscaping Services</h2>
           <p className="text-gray-500 max-w-xl mx-auto">
@@ -168,13 +197,21 @@ function Services() {
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {SERVICES.map((s) => (
-            <div key={s.title} className="card group hover:-translate-y-1 transition-transform duration-200">
+          {SERVICES.map((s, i) => (
+            <div
+              key={s.title}
+              className="card group cursor-pointer reveal hover:-translate-y-2 hover:shadow-xl hover:shadow-brand-green/15 hover:border-brand-green/30"
+              style={{ transitionDelay: `${i * 0.12}s` }}
+              onClick={() => onServiceClick(s.title)}
+            >
               <div className="w-12 h-12 bg-brand-green/10 text-brand-green rounded-xl flex items-center justify-center mb-4 group-hover:bg-brand-green group-hover:text-white transition-colors duration-200">
                 {s.icon}
               </div>
               <h3 className="font-display font-semibold text-lg text-brand-dark mb-2">{s.title}</h3>
               <p className="text-gray-500 text-sm leading-relaxed">{s.desc}</p>
+              <p className="mt-4 text-brand-green text-sm font-semibold flex items-center gap-1 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                Book Now <ArrowRight className="w-3.5 h-3.5" />
+              </p>
             </div>
           ))}
         </div>
@@ -196,7 +233,7 @@ function About() {
     <section id="about" className="py-20 bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="grid lg:grid-cols-2 gap-14 items-center">
-          <div>
+          <div className="reveal">
             <p className="section-label mb-3">About Green Edge</p>
             <h2 className="font-display text-4xl font-bold text-brand-dark mb-5">
               Las Vegas Landscaping Done Right
@@ -216,14 +253,14 @@ function About() {
               ))}
             </ul>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 reveal" style={{ transitionDelay: '0.15s' }}>
             {[
               { icon: <Award size={24} />, title: 'Certified Pros', desc: 'ISA-certified arborists and licensed landscape contractors' },
               { icon: <Droplets size={24} />, title: 'Water Smart', desc: 'Designs that cut water usage by up to 40% vs. traditional landscaping' },
               { icon: <Sun size={24} />, title: 'Desert Hardy', desc: 'Plants and materials chosen to thrive in Nevada\'s extreme heat' },
               { icon: <Shield size={24} />, title: 'Guaranteed Work', desc: 'Full satisfaction guarantee on every project and service' },
             ].map((item) => (
-              <div key={item.title} className="bg-brand-dark rounded-2xl p-6 text-white">
+              <div key={item.title} className="bg-brand-dark rounded-2xl p-6 text-white hover:-translate-y-1 transition-transform duration-300">
                 <div className="w-10 h-10 bg-brand-green/20 text-brand-light rounded-lg flex items-center justify-center mb-3">
                   {item.icon}
                 </div>
@@ -242,18 +279,18 @@ function Reviews() {
   return (
     <section id="reviews" className="py-20 bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-14">
+        <div className="text-center mb-14 reveal">
           <p className="section-label mb-3">Customer Reviews</p>
           <h2 className="font-display text-4xl font-bold text-brand-dark mb-4">
             Loved by Las Vegas Homeowners
           </h2>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
-          {TESTIMONIALS.map((t) => (
-            <div key={t.name} className="card">
+          {TESTIMONIALS.map((t, i) => (
+            <div key={t.name} className="card reveal hover:-translate-y-1 hover:shadow-lg transition-all duration-300" style={{ transitionDelay: `${i * 0.12}s` }}>
               <div className="flex items-center gap-1 mb-4">
-                {Array.from({ length: t.stars }).map((_, i) => (
-                  <Star key={i} size={16} className="text-yellow-400 fill-yellow-400" />
+                {Array.from({ length: t.stars }).map((_, j) => (
+                  <Star key={j} size={16} className="text-yellow-400 fill-yellow-400" />
                 ))}
               </div>
               <p className="text-gray-600 italic text-sm leading-relaxed mb-5">"{t.text}"</p>
@@ -274,12 +311,20 @@ function Reviews() {
   )
 }
 
-function BookingForm() {
+function BookingForm({ preselect = '' }) {
   const [form, setForm] = useState({
     name: '', phone: '', email: '', service: '', preferredDate: '', preferredTime: '', notes: '',
   })
   const [status, setStatus] = useState('idle')
   const [errors, setErrors] = useState({})
+  const formRef = useRef(null)
+
+  useEffect(() => {
+    if (preselect) {
+      setForm((f) => ({ ...f, service: preselect }))
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [preselect])
 
   const validate = () => {
     const e = {}
@@ -313,7 +358,7 @@ function BookingForm() {
   })
 
   return (
-    <section id="booking" className="py-20 bg-brand-dark">
+    <section id="booking" className="py-20 bg-brand-dark reveal">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="grid lg:grid-cols-5 gap-10 items-start">
           <div className="lg:col-span-2 text-white">
@@ -338,8 +383,8 @@ function BookingForm() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-0.5">Email Us</p>
-                  <a href="mailto:owner@greenedgelandscaping.com" className="font-semibold hover:text-brand-light transition-colors text-sm">
-                    owner@greenedgelandscaping.com
+                  <a href="mailto:demo@greenedgelandscaping.com" className="font-semibold hover:text-brand-light transition-colors text-sm">
+                    demo@greenedgelandscaping.com
                   </a>
                 </div>
               </div>
@@ -355,7 +400,7 @@ function BookingForm() {
             </div>
           </div>
 
-          <div className="lg:col-span-3 bg-white rounded-2xl p-8">
+          <div ref={formRef} className="lg:col-span-3 bg-white rounded-2xl p-8">
             {status === 'success' ? (
               <div className="text-center py-10">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -460,7 +505,7 @@ function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <Mail size={14} className="text-brand-light shrink-0" />
-                <a href="mailto:owner@greenedgelandscaping.com" className="hover:text-white transition-colors">owner@greenedgelandscaping.com</a>
+                <a href="mailto:demo@greenedgelandscaping.com" className="hover:text-white transition-colors">demo@greenedgelandscaping.com</a>
               </li>
               <li className="flex items-start gap-2">
                 <MapPin size={14} className="text-brand-light shrink-0 mt-0.5" />
@@ -479,14 +524,32 @@ function Footer() {
 }
 
 export default function Home() {
+  const [preselectService, setPreselectService] = useState('')
+
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      entries => entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in-view'); obs.unobserve(e.target) }
+      }),
+      { threshold: 0.1 }
+    )
+    document.querySelectorAll('.reveal').forEach(el => obs.observe(el))
+    return () => obs.disconnect()
+  }, [])
+
+  const handleServiceClick = (serviceName) => {
+    setPreselectService(serviceName)
+    document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
   return (
     <div className="min-h-screen">
       <Navbar />
       <Hero />
-      <Services />
+      <Services onServiceClick={handleServiceClick} />
       <About />
       <Reviews />
-      <BookingForm />
+      <BookingForm preselect={preselectService} />
       <Footer />
     </div>
   )
