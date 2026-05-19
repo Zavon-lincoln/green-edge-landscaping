@@ -86,6 +86,7 @@
   --badge-inactive-bg:     #F3F4F6; --badge-inactive-text:     #374151;
   --badge-new-bg:          #DBEAFE; --badge-new-text:          #1E40AF;
   --badge-contacted-bg:    #EDE9FE; --badge-contacted-text:    #5B21B6;
+  --badge-quoted-bg:       #FEF3C7; --badge-quoted-text:       #92400E;
   --badge-booked-bg:       #DCFCE7; --badge-booked-text:       #166534;
 
   /* Typography scale */
