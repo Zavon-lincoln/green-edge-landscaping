@@ -28,9 +28,18 @@ export function updateLeadStatus(id, status) {
   return updated
 }
 
+export function deleteLead(id) {
+  const leads = getLeads()
+  const updated = leads.filter(l => l.id !== id)
+  localStorage.setItem(LEADS_KEY, JSON.stringify(updated))
+  return updated
+}
+
 const AUTH_KEY = 'greenedge_auth'
+
 export function login(password) {
-  if (password === 'Vegas@9471') {
+  const adminPass = import.meta.env.VITE_ADMIN_PASSWORD || 'greenedge2024'
+  if (password === adminPass) {
     sessionStorage.setItem(AUTH_KEY, 'true')
     return true
   }

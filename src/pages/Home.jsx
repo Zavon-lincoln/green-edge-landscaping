@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { Leaf, Droplets, Scissors, Trees, Star, Phone, Mail, MapPin, ChevronRight, CheckCircle, Shield, Award, Sun, Menu, X, ArrowRight } from 'lucide-react'
 import { saveLead } from '../utils/storage'
 import { sendConfirmationEmail, sendOwnerNotification } from '../utils/email'
@@ -46,6 +47,44 @@ const TESTIMONIALS = [
     text: 'Reliable, professional, and they always show up on schedule. My lawn has never looked better in 10 years of living here.',
   },
 ]
+
+/* ── Trust Badge Strip ──────────────────────────────────────────────────── */
+function TrustStrip() {
+  return (
+    <div className="trust-strip">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 py-1">
+          <span className="trust-badge">
+            <Shield size={15} /> Nevada Licensed &amp; Insured
+          </span>
+          <span className="trust-badge">
+            <Award size={15} /> ISA Certified Arborists
+          </span>
+          <span className="trust-badge">
+            <CheckCircle size={15} /> Satisfaction Guaranteed
+          </span>
+          <span className="trust-badge">
+            <Star size={15} /> 10+ Years Serving Las Vegas
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Emergency CTA — fixed phone button on mobile ──────────────────────── */
+function EmergencyCTA() {
+  return (
+    <a
+      href="tel:7025550371"
+      className="emergency-cta"
+      aria-label="Call Green Edge Landscaping now"
+    >
+      <Phone size={18} />
+      <span>(702) 555-0371</span>
+    </a>
+  )
+}
 
 const FORM_SERVICES = [
   'Lawn Maintenance',
@@ -329,7 +368,11 @@ function BookingForm({ preselect = '' }) {
   const validate = () => {
     const e = {}
     if (!form.name.trim()) e.name = 'Name is required'
-    if (!form.phone.trim()) e.phone = 'Phone is required'
+    if (!form.phone.trim()) {
+      e.phone = 'Phone is required'
+    } else if (form.phone.replace(/\D/g, '').length < 10) {
+      e.phone = 'Enter a valid phone number (10 digits minimum)'
+    }
     if (!form.email.trim()) e.email = 'Email is required'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email'
     if (!form.service) e.service = 'Please select a service'
@@ -515,8 +558,8 @@ function Footer() {
           </div>
         </div>
         <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-gray-500">
-          <p>© {new Date().getFullYear()} Green Edge Landscaping. All rights reserved.</p>
-          <a href="/admin" className="hover:text-gray-300 transition-colors">Admin</a>
+          <p>Demo Site</p>
+          <Link to="/admin" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Admin</Link>
         </div>
       </div>
     </footer>
@@ -546,11 +589,14 @@ export default function Home() {
     <div className="min-h-screen">
       <Navbar />
       <Hero />
+      <TrustStrip />
       <Services onServiceClick={handleServiceClick} />
       <About />
       <Reviews />
       <BookingForm preselect={preselectService} />
       <Footer />
+      {/* Fixed emergency call button — visible on mobile only */}
+      <EmergencyCTA />
     </div>
   )
 }
