@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Leaf, Droplets, Scissors, Trees, Star, Phone, Mail, MapPin, ChevronRight, CheckCircle, Shield, Award, Sun, Menu, X, ArrowRight } from 'lucide-react'
-import { saveLead } from '../utils/storage'
+import { saveLead, getSettings } from '../utils/storage'
 import { sendConfirmationEmail, sendOwnerNotification } from '../utils/email'
 
 const SERVICES = [
@@ -356,7 +356,10 @@ function BookingForm({ preselect = '' }) {
   })
   const [status, setStatus] = useState('idle')
   const [errors, setErrors] = useState({})
+  const [settings, setSettings] = useState(null)
   const formRef = useRef(null)
+
+  useEffect(() => { setSettings(getSettings()) }, [])
 
   useEffect(() => {
     if (preselect) {
@@ -364,6 +367,8 @@ function BookingForm({ preselect = '' }) {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [preselect])
+
+  const DAY_LABELS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
 
   const validate = () => {
     const e = {}
@@ -376,6 +381,15 @@ function BookingForm({ preselect = '' }) {
     if (!form.email.trim()) e.email = 'Email is required'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email'
     if (!form.service) e.service = 'Please select a service'
+    if (form.preferredDate && settings) {
+      const dt  = new Date(form.preferredDate + 'T00:00:00')
+      const dow = dt.getDay()
+      if (settings.blocked_weekdays.includes(dow)) {
+        e.preferredDate = `${DAY_LABELS[dow]}s are not available — please choose another day.`
+      } else if (settings.blocked_dates.includes(form.preferredDate)) {
+        e.preferredDate = 'This date is unavailable. Please select a different date.'
+      }
+    }
     return e
   }
 
@@ -484,6 +498,9 @@ function BookingForm({ preselect = '' }) {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Preferred Date</label>
                     <input type="date" className="input-field" {...field('preferredDate')} />
+                    {errors.preferredDate && (
+                      <p className="text-red-500 text-xs mt-1">{errors.preferredDate}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Preferred Time</label>

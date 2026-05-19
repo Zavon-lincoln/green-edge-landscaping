@@ -2,9 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   LogOut, Calendar, Users, Lock, ChevronLeft, ChevronRight,
   Phone, Mail, XCircle, Trash2, AlertTriangle, CheckCircle,
+  Settings, Plus, X as XIcon, Database,
 } from 'lucide-react'
 import {
-  isAuthenticated, login, logout, getLeads, updateLeadStatus, deleteLead,
+  isAuthenticated, login, logout,
+  getLeads, updateLeadStatus, deleteLead,
+  getSettings, saveSettings, seedDemoData,
 } from '../utils/storage'
 
 const STATUS_OPTIONS = ['New', 'Contacted', 'Booked', 'Completed', 'Cancelled']
@@ -24,6 +27,12 @@ const STATUS_FG = {
   Completed: 'var(--badge-completed-text)',
   Cancelled: 'var(--badge-cancelled-text)',
 }
+
+const ALL_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const ALL_TIME_SLOTS = [
+  '7:00 AM','8:00 AM','9:00 AM','10:00 AM','11:00 AM',
+  '12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM',
+]
 
 const MONTH_NAMES = [
   'January','February','March','April','May','June',
@@ -110,8 +119,10 @@ export default function Admin() {
   const [view, setView]                 = useState('table')
   const [calYear, setCalYear]           = useState(new Date().getFullYear())
   const [calMonth, setCalMonth]         = useState(new Date().getMonth())
-  const [deleteTarget, setDeleteTarget] = useState(null)  // { id, name }
-  const [toast, setToast]               = useState(null)  // { message, type }
+  const [deleteTarget, setDeleteTarget]   = useState(null)  // { id, name }
+  const [toast, setToast]                 = useState(null)  // { message, type }
+  const [settings, setSettings]           = useState(getSettings())
+  const [settingsDateInput, setSettingsDateInput] = useState('')
 
   const loadLeads = useCallback(() => {
     setIsLoading(true)
@@ -148,6 +159,53 @@ export default function Admin() {
       setToast({ message: 'Could not delete lead — please try again', type: 'error' })
     }
     setDeleteTarget(null)
+  }
+
+  function handleSaveSettings() {
+    saveSettings(settings)
+    setToast({ message: 'Availability settings saved', type: 'success' })
+  }
+
+  function toggleWeekday(day) {
+    setSettings(s => {
+      const blocked = s.blocked_weekdays.includes(day)
+        ? s.blocked_weekdays.filter(d => d !== day)
+        : [...s.blocked_weekdays, day]
+      return { ...s, blocked_weekdays: blocked }
+    })
+  }
+
+  function toggleTimeSlot(slot) {
+    setSettings(s => {
+      const active = s.time_slots.includes(slot)
+        ? s.time_slots.filter(t => t !== slot)
+        : [...s.time_slots, slot].sort((a, b) => ALL_TIME_SLOTS.indexOf(a) - ALL_TIME_SLOTS.indexOf(b))
+      return { ...s, time_slots: active }
+    })
+  }
+
+  function handleAddBlockedDate() {
+    if (!settingsDateInput) return
+    if (settings.blocked_dates.includes(settingsDateInput)) {
+      setSettingsDateInput('')
+      return
+    }
+    setSettings(s => ({
+      ...s,
+      blocked_dates: [...s.blocked_dates, settingsDateInput].sort(),
+    }))
+    setSettingsDateInput('')
+  }
+
+  function handleRemoveBlockedDate(date) {
+    setSettings(s => ({ ...s, blocked_dates: s.blocked_dates.filter(d => d !== date) }))
+  }
+
+  function handleSeedData() {
+    seedDemoData()
+    loadLeads()
+    setToast({ message: 'Demo leads loaded successfully', type: 'success' })
+    setView('table')
   }
 
   /* ── Login screen ─────────────────────────────────────────────────── */
@@ -278,6 +336,16 @@ export default function Admin() {
             >
               <Calendar className="w-4 h-4" />
               <span className="hidden sm:inline">Calendar</span>
+            </button>
+            <button
+              onClick={() => setView('settings')}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                view === 'settings' ? 'bg-brand-green text-white' : 'text-gray-300 hover:text-white'
+              }`}
+              style={{ minHeight: 44 }}
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Settings</span>
             </button>
             <button
               onClick={handleLogout}
@@ -534,6 +602,138 @@ export default function Admin() {
                 </p>
               </div>
             )}
+          </div>
+        )}
+        {/* ── Settings view ─────────────────────────────────────────────── */}
+        {view === 'settings' && (
+          <div className="space-y-6">
+
+            {/* Off Days — weekday toggles */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="font-bold text-brand-dark text-lg mb-1 flex items-center gap-2">
+                <Settings className="w-5 h-5 text-brand-green" /> Availability Settings
+              </h2>
+              <p className="text-sm text-gray-500 mb-6">
+                Configure which days and times customers can request appointments.
+              </p>
+
+              <p className="text-sm font-semibold text-gray-700 mb-3">Days Off (blocked for bookings)</p>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {ALL_WEEKDAYS.map((label, idx) => {
+                  const blocked = settings.blocked_weekdays.includes(idx)
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => toggleWeekday(idx)}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-colors ${
+                        blocked
+                          ? 'bg-red-50 border-red-300 text-red-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-brand-green hover:text-brand-green'
+                      }`}
+                      style={{ minHeight: 44 }}
+                    >
+                      {label}
+                      {blocked && <span className="ml-1.5 text-xs">(off)</span>}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Time slots */}
+              <p className="text-sm font-semibold text-gray-700 mb-3">Available Time Slots</p>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {ALL_TIME_SLOTS.map(slot => {
+                  const active = settings.time_slots.includes(slot)
+                  return (
+                    <button
+                      key={slot}
+                      onClick={() => toggleTimeSlot(slot)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${
+                        active
+                          ? 'bg-brand-green/10 border-brand-green/40 text-brand-green'
+                          : 'bg-gray-50 border-gray-200 text-gray-400 line-through'
+                      }`}
+                      style={{ minHeight: 40 }}
+                    >
+                      {slot}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Blocked specific dates */}
+              <p className="text-sm font-semibold text-gray-700 mb-3">Block Specific Dates</p>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="date"
+                  value={settingsDateInput}
+                  onChange={e => setSettingsDateInput(e.target.value)}
+                  className="input-field flex-1"
+                  style={{ maxWidth: 200 }}
+                />
+                <button
+                  onClick={handleAddBlockedDate}
+                  disabled={!settingsDateInput}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-brand-green text-white rounded-lg text-sm font-semibold
+                             hover:bg-brand-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ minHeight: 44 }}
+                >
+                  <Plus className="w-4 h-4" /> Block Date
+                </button>
+              </div>
+              {settings.blocked_dates.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">No specific dates blocked.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {settings.blocked_dates.map(date => (
+                    <li key={date} className="flex items-center justify-between bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-sm">
+                      <span className="text-red-700 font-medium">
+                        {new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+                          weekday: 'short', month: 'long', day: 'numeric', year: 'numeric',
+                        })}
+                      </span>
+                      <button
+                        onClick={() => handleRemoveBlockedDate(date)}
+                        className="p-1 text-red-400 hover:text-red-600 transition-colors rounded"
+                        aria-label={`Remove blocked date ${date}`}
+                      >
+                        <XIcon className="w-4 h-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={handleSaveSettings}
+                  className="btn-primary"
+                  style={{ minHeight: 44 }}
+                >
+                  Save Settings
+                </button>
+              </div>
+            </div>
+
+            {/* Demo Data */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-bold text-brand-dark text-base mb-1 flex items-center gap-2">
+                <Database className="w-4 h-4 text-gray-400" /> Demo Data
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Load 10 sample leads with realistic Las Vegas homeowner data to preview the dashboard.
+                This will replace any existing leads.
+              </p>
+              <button
+                onClick={handleSeedData}
+                className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700
+                           font-semibold text-sm rounded-lg transition-colors"
+                style={{ minHeight: 44 }}
+              >
+                <Database className="w-4 h-4" /> Load Demo Leads
+              </button>
+            </div>
+
           </div>
         )}
       </main>
