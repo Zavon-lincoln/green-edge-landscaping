@@ -4,7 +4,7 @@ import {
   Phone, Mail, XCircle, Trash2, AlertTriangle, CheckCircle,
   Settings, Plus, X as XIcon, Database, MessageSquare,
   ArrowRight, Info, DollarSign, Download, Kanban,
-  Clock, Send,
+  Clock, Send, UserPlus, Loader2, ShieldCheck,
 } from 'lucide-react'
 import {
   isAuthenticated, login, logout,
@@ -12,7 +12,8 @@ import {
   addLeadNote, updateLeadJobValue, markFollowUpSent,
   exportLeadsCSV, getSettings, saveSettings, seedDemoData,
 } from '../utils/storage'
-import { sendFollowUpEmail } from '../utils/email'
+import { sendFollowUpEmail, sendInviteEmail } from '../utils/email'
+import { loginWithEmail, logoutTeam, getCurrentUserProfile, createInvite, getTeamMembers, removeTeamMember } from '../utils/team'
 
 const STATUS_OPTIONS  = ['New', 'Contacted', 'Quoted', 'Booked', 'Completed', 'Cancelled']
 const PIPELINE_COLS   = ['New', 'Contacted', 'Quoted', 'Booked', 'Completed', 'Cancelled']
@@ -423,6 +424,93 @@ function KanbanColumn({ status, leads, onDrop, onDragOver, onDragStart, onSelect
   )
 }
 
+/* ── Team Management Card ───────────────────────────────────────────────── */
+function TeamManagementCard({ teamMembers, inviteEmail, setInviteEmail, inviteRole, setInviteRole, inviteLoading, onInvite, onRemove, onMount }) {
+  useEffect(() => { onMount() }, [])
+
+  const ROLE_OPTIONS = [
+    { value: 'office_staff', label: 'Office Staff' },
+    { value: 'technician',   label: 'Technician' },
+  ]
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 className="font-bold text-brand-dark text-lg mb-1 flex items-center gap-2">
+        <UserPlus className="w-5 h-5 text-brand-green" /> Team Management
+      </h3>
+      <p className="text-sm text-gray-500 mb-6">
+        Invite employees by email. They'll receive a link to set their password.
+      </p>
+
+      {/* Invite form */}
+      <form onSubmit={onInvite} className="flex flex-wrap gap-3 mb-6">
+        <input
+          type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+          className="input-field flex-1" style={{ minWidth: 200 }}
+          placeholder="employee@example.com" required
+        />
+        <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+          className="input-field" style={{ minWidth: 160 }}>
+          {ROLE_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        <button type="submit" disabled={inviteLoading || !inviteEmail.trim()}
+          className="flex items-center gap-2 px-5 py-2.5 bg-brand-green text-white font-semibold
+                     text-sm rounded-lg hover:bg-brand-dark transition-colors
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ minHeight: 44 }}>
+          {inviteLoading
+            ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+            : <><Send className="w-4 h-4" /> Send Invite</>}
+        </button>
+      </form>
+
+      {/* Team members list */}
+      {teamMembers.length === 0 ? (
+        <p className="text-sm text-gray-400 italic">No team members yet. Send your first invite above.</p>
+      ) : (
+        <div className="space-y-2">
+          {teamMembers.map(member => (
+            <div key={member.id}
+              className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-brand-green/10 flex items-center justify-center shrink-0">
+                  <span className="text-brand-green font-bold text-sm">
+                    {(member.full_name || member.email || '?')[0].toUpperCase()}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm truncate">
+                    {member.full_name || <span className="text-gray-400 italic">Name not set</span>}
+                  </p>
+                  <p className="text-gray-500 text-xs truncate">{member.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 ml-3 shrink-0">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                  member.role === 'owner'        ? 'bg-brand-green/10 text-brand-green' :
+                  member.role === 'office_staff' ? 'bg-blue-50 text-blue-700' :
+                                                   'bg-gray-100 text-gray-600'
+                }`}>
+                  {ROLE_LABELS[member.role] || member.role}
+                </span>
+                {member.role !== 'owner' && (
+                  <button onClick={() => onRemove(member)}
+                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Remove member">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ── Skeleton Row ───────────────────────────────────────────────────────── */
 function SkeletonRow() {
   return (
@@ -436,11 +524,18 @@ function SkeletonRow() {
   )
 }
 
+const ROLE_LABELS = { owner: 'Owner', office_staff: 'Office Staff', technician: 'Technician' }
+
 /* ── Admin Page ─────────────────────────────────────────────────────────── */
 export default function Admin() {
   const [authed, setAuthed]             = useState(isAuthenticated())
+  const [userRole, setUserRole]         = useState(isAuthenticated() ? 'owner' : null)
+  const [loginTab, setLoginTab]         = useState('owner')  // 'owner' | 'team'
   const [password, setPassword]         = useState('')
+  const [teamEmail, setTeamEmail]       = useState('')
+  const [teamPassword, setTeamPassword] = useState('')
   const [loginErr, setLoginErr]         = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
   const [leads, setLeads]               = useState([])
   const [isLoading, setIsLoading]       = useState(false)
   const [view, setView]                 = useState('pipeline')
@@ -451,10 +546,25 @@ export default function Admin() {
   const [selectedLeadId, setSelectedLeadId] = useState(null)
   const [settings, setSettings]         = useState(getSettings())
   const [settingsDateInput, setSettingsDateInput] = useState('')
+  const [teamMembers, setTeamMembers]   = useState([])
+  const [inviteEmail, setInviteEmail]   = useState('')
+  const [inviteRole, setInviteRole]     = useState('technician')
+  const [inviteLoading, setInviteLoading] = useState(false)
   const followUpChecked = useRef(false)
 
   /* derive drawer lead from live leads array so it's never stale */
   const drawerLead = selectedLeadId ? leads.find(l => l.id === selectedLeadId) ?? null : null
+
+  /* Check for existing Supabase session on mount (team member returning) */
+  useEffect(() => {
+    if (authed) return
+    getCurrentUserProfile().then(profile => {
+      if (profile) {
+        setUserRole(profile.role)
+        setAuthed(true)
+      }
+    })
+  }, [])
 
   const loadLeads = useCallback(() => {
     setIsLoading(true)
@@ -493,10 +603,65 @@ export default function Admin() {
 
   function handleLogin(e) {
     e.preventDefault()
-    if (login(password)) { setAuthed(true); setLoginErr('') }
+    if (login(password)) { setUserRole('owner'); setAuthed(true); setLoginErr('') }
     else setLoginErr('Incorrect password. Please try again.')
   }
-  function handleLogout() { logout(); setAuthed(false); setPassword(''); setSelectedLeadId(null) }
+
+  async function handleTeamLogin(e) {
+    e.preventDefault()
+    setLoginLoading(true); setLoginErr('')
+    try {
+      await loginWithEmail(teamEmail, teamPassword)
+      const profile = await getCurrentUserProfile()
+      if (!profile) throw new Error('Account not found. Contact your manager.')
+      setUserRole(profile.role)
+      setAuthed(true)
+    } catch (err) {
+      setLoginErr(err.message || 'Sign-in failed. Check your credentials.')
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
+  async function handleLogout() {
+    logout()
+    await logoutTeam()
+    setAuthed(false); setUserRole(null)
+    setPassword(''); setTeamEmail(''); setTeamPassword('')
+    setSelectedLeadId(null)
+  }
+
+  async function handleInvite(e) {
+    e.preventDefault()
+    if (!inviteEmail.trim()) return
+    setInviteLoading(true)
+    try {
+      const invite = await createInvite(inviteEmail.trim(), inviteRole, null)
+      const inviteLink = `${window.location.origin}/admin/accept-invite?token=${invite.token}`
+      await sendInviteEmail({ toEmail: invite.email, role: invite.role, inviteLink })
+      setInviteEmail('')
+      setToast({ message: `Invite sent to ${invite.email}`, type: 'success' })
+      loadTeamMembers()
+    } catch (err) {
+      setToast({ message: err.message || 'Failed to send invite', type: 'error' })
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
+  async function handleRemoveMember(member) {
+    try {
+      await removeTeamMember(member.id)
+      setTeamMembers(prev => prev.filter(m => m.id !== member.id))
+      setToast({ message: `${member.full_name || member.email} removed`, type: 'success' })
+    } catch (err) {
+      setToast({ message: err.message || 'Could not remove member', type: 'error' })
+    }
+  }
+
+  function loadTeamMembers() {
+    getTeamMembers().then(setTeamMembers)
+  }
 
   function handleStatusChange(id, status) {
     setLeads(updateLeadStatus(id, status))
@@ -575,31 +740,76 @@ export default function Admin() {
     return (
       <div className="min-h-screen bg-brand-dark flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm">
-          <div className="flex flex-col items-center mb-8">
+          <div className="flex flex-col items-center mb-6">
             <div className="w-14 h-14 bg-brand-green rounded-xl flex items-center justify-center mb-4">
               <Lock className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-brand-dark font-display">Admin Login</h1>
-            <p className="text-gray-500 text-sm mt-1">Green Edge Landscaping Dashboard</p>
+            <h1 className="text-2xl font-bold text-brand-dark font-display">Dashboard Login</h1>
+            <p className="text-gray-500 text-sm mt-1">Green Edge Landscaping</p>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                type="password" value={password} onChange={e => setPassword(e.target.value)}
-                className="input-field" placeholder="Enter admin password"
-                required autoComplete="current-password"
-              />
-            </div>
-            {loginErr && (
-              <p className="text-red-600 text-sm flex items-center gap-1" role="alert">
-                <XCircle className="w-4 h-4 shrink-0" /> {loginErr}
-              </p>
-            )}
-            <button type="submit" className="btn-primary w-full justify-center" style={{ minHeight: 48 }}>
-              Sign In
-            </button>
-          </form>
+
+          {/* Tabs */}
+          <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
+            {[['owner', 'Owner Access'], ['team', 'Team Sign In']].map(([key, label]) => (
+              <button key={key} type="button"
+                onClick={() => { setLoginTab(key); setLoginErr('') }}
+                className={`flex-1 py-2 text-sm font-semibold rounded-md transition-colors ${
+                  loginTab === key ? 'bg-white text-brand-dark shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {loginTab === 'owner' ? (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password" value={password} onChange={e => setPassword(e.target.value)}
+                  className="input-field" placeholder="Enter owner password"
+                  required autoComplete="current-password"
+                />
+              </div>
+              {loginErr && (
+                <p className="text-red-600 text-sm flex items-center gap-1" role="alert">
+                  <XCircle className="w-4 h-4 shrink-0" /> {loginErr}
+                </p>
+              )}
+              <button type="submit" className="btn-primary w-full justify-center" style={{ minHeight: 48 }}>
+                Sign In
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleTeamLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email" value={teamEmail} onChange={e => setTeamEmail(e.target.value)}
+                  className="input-field" placeholder="you@example.com"
+                  required autoComplete="email"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input
+                  type="password" value={teamPassword} onChange={e => setTeamPassword(e.target.value)}
+                  className="input-field" placeholder="Your password"
+                  required autoComplete="current-password"
+                />
+              </div>
+              {loginErr && (
+                <p className="text-red-600 text-sm flex items-center gap-1" role="alert">
+                  <XCircle className="w-4 h-4 shrink-0" /> {loginErr}
+                </p>
+              )}
+              <button type="submit" disabled={loginLoading}
+                className="btn-primary w-full justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ minHeight: 48 }}>
+                {loginLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</> : 'Sign In'}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     )
@@ -685,11 +895,11 @@ export default function Admin() {
           </div>
           <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-end">
             {[
-              { key: 'pipeline', icon: <Kanban className="w-4 h-4" />, label: 'Pipeline' },
-              { key: 'table',    icon: <Users className="w-4 h-4" />,        label: 'Leads' },
-              { key: 'calendar', icon: <Calendar className="w-4 h-4" />,     label: 'Calendar' },
-              { key: 'settings', icon: <Settings className="w-4 h-4" />,     label: 'Settings' },
-            ].map(({ key, icon, label }) => (
+              { key: 'pipeline', icon: <Kanban className="w-4 h-4" />,    label: 'Pipeline', roles: ['owner','office_staff'] },
+              { key: 'table',    icon: <Users className="w-4 h-4" />,     label: 'Leads',    roles: ['owner','office_staff'] },
+              { key: 'calendar', icon: <Calendar className="w-4 h-4" />,  label: 'Calendar', roles: ['owner','office_staff','technician'] },
+              { key: 'settings', icon: <Settings className="w-4 h-4" />,  label: 'Settings', roles: ['owner','office_staff'] },
+            ].filter(t => t.roles.includes(userRole)).map(({ key, icon, label }) => (
               <button key={key} onClick={() => setView(key)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   view === key ? 'bg-brand-green text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -699,6 +909,12 @@ export default function Admin() {
                 <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
+            {userRole && userRole !== 'owner' && (
+              <span className="hidden sm:flex items-center gap-1 px-2.5 py-1 bg-white/10 rounded-lg text-xs text-gray-300 font-medium">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {ROLE_LABELS[userRole]}
+              </span>
+            )}
             <button onClick={handleLogout}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
                          text-gray-300 hover:text-white hover:bg-white/10 transition-colors ml-1"
@@ -1028,6 +1244,21 @@ export default function Admin() {
                 <Database className="w-4 h-4" /> Load Demo Leads
               </button>
             </div>
+
+            {/* Team Management — owner only */}
+            {userRole === 'owner' && (
+              <TeamManagementCard
+                teamMembers={teamMembers}
+                inviteEmail={inviteEmail}
+                setInviteEmail={setInviteEmail}
+                inviteRole={inviteRole}
+                setInviteRole={setInviteRole}
+                inviteLoading={inviteLoading}
+                onInvite={handleInvite}
+                onRemove={handleRemoveMember}
+                onMount={loadTeamMembers}
+              />
+            )}
           </div>
         )}
       </main>

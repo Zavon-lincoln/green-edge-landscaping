@@ -5,6 +5,7 @@ const SERVICE_ID        = import.meta.env.VITE_EMAILJS_SERVICE_ID        || ''
 const CLIENT_TEMPLATE   = import.meta.env.VITE_EMAILJS_CLIENT_TEMPLATE_ID || ''
 const OWNER_TEMPLATE    = import.meta.env.VITE_EMAILJS_OWNER_TEMPLATE_ID  || ''
 const FOLLOWUP_TEMPLATE = import.meta.env.VITE_EMAILJS_FOLLOWUP_TEMPLATE_ID || ''
+const INVITE_TEMPLATE   = import.meta.env.VITE_EMAILJS_INVITE_TEMPLATE_ID   || ''
 const OWNER_EMAIL       = 'demo@greenedgelandscaping.com'
 
 const configured = () => PUBLIC_KEY && PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY'
@@ -41,6 +42,23 @@ export async function sendOwnerNotification(lead) {
     }, PUBLIC_KEY)
   } catch (err) {
     console.warn('Owner notification failed:', err)
+  }
+}
+
+export async function sendInviteEmail({ toEmail, role, inviteLink }) {
+  if (!configured()) {
+    console.info('EmailJS not configured — invite simulated for:', toEmail)
+    return
+  }
+  try {
+    await emailjs.send(SERVICE_ID, INVITE_TEMPLATE, {
+      to_email:    toEmail,
+      role:        role,
+      invite_link: inviteLink,
+      company:     'Green Edge Landscaping',
+    }, PUBLIC_KEY)
+  } catch (err) {
+    console.warn('Invite email failed:', err)
   }
 }
 
