@@ -31,11 +31,17 @@ export async function createInvite(email, role, invitedBy) {
   return data
 }
 
+const DEMO_TEAM = [
+  { id: 'demo_1', email: 'maria.santos@greenedge.com',  full_name: 'Maria Santos', role: 'office_staff', created_at: new Date(Date.now() - 90 * 86400000).toISOString() },
+  { id: 'demo_2', email: 'jake.torres@greenedge.com',   full_name: 'Jake Torres',  role: 'technician',   created_at: new Date(Date.now() - 60 * 86400000).toISOString() },
+  { id: 'demo_3', email: 'priya.nair@greenedge.com',    full_name: 'Priya Nair',   role: 'technician',   created_at: new Date(Date.now() - 30 * 86400000).toISOString() },
+]
+
 export async function getTeamMembers() {
-  if (!supabase) return []
+  if (!supabase) return DEMO_TEAM
   const { data, error } = await supabase.from('profiles').select('*').order('created_at')
-  if (error) return []
-  return data || []
+  if (error) return DEMO_TEAM
+  return data?.length ? data : DEMO_TEAM
 }
 
 export async function removeTeamMember(id) {
