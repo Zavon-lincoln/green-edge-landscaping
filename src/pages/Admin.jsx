@@ -425,13 +425,23 @@ function KanbanColumn({ status, leads, onDrop, onDragOver, onDragStart, onSelect
 }
 
 /* ── Team Management Card ───────────────────────────────────────────────── */
+const INVITE_ROLES = [
+  {
+    value: 'office_staff',
+    label: 'Office Staff',
+    description: 'Manages leads, pipeline, and calendar. Can add notes, update statuses, and export data. No access to team or settings.',
+  },
+  {
+    value: 'technician',
+    label: 'Technician',
+    description: 'Field crew access. Sees the calendar and their scheduled appointments only. Cannot view leads or financial data.',
+  },
+]
+
 function TeamManagementCard({ teamMembers, inviteEmail, setInviteEmail, inviteRole, setInviteRole, inviteLoading, onInvite, onRemove, onMount }) {
   useEffect(() => { onMount() }, [])
 
-  const ROLE_OPTIONS = [
-    { value: 'office_staff', label: 'Office Staff' },
-    { value: 'technician',   label: 'Technician' },
-  ]
+  const selectedRole = INVITE_ROLES.find(r => r.value === inviteRole)
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -443,27 +453,35 @@ function TeamManagementCard({ teamMembers, inviteEmail, setInviteEmail, inviteRo
       </p>
 
       {/* Invite form */}
-      <form onSubmit={onInvite} className="flex flex-wrap gap-3 mb-6">
-        <input
-          type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
-          className="input-field flex-1" style={{ minWidth: 200 }}
-          placeholder="employee@example.com" required
-        />
-        <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
-          className="input-field" style={{ minWidth: 160 }}>
-          {ROLE_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <button type="submit" disabled={inviteLoading || !inviteEmail.trim()}
-          className="flex items-center gap-2 px-5 py-2.5 bg-brand-green text-white font-semibold
-                     text-sm rounded-lg hover:bg-brand-dark transition-colors
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ minHeight: 44 }}>
-          {inviteLoading
-            ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
-            : <><Send className="w-4 h-4" /> Send Invite</>}
-        </button>
+      <form onSubmit={onInvite} className="mb-6">
+        <div className="flex flex-wrap gap-3 mb-3">
+          <input
+            type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+            className="input-field flex-1" style={{ minWidth: 200 }}
+            placeholder="employee@example.com" required
+          />
+          <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+            className="input-field" style={{ minWidth: 160 }}>
+            {INVITE_ROLES.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <button type="submit" disabled={inviteLoading || !inviteEmail.trim()}
+            className="flex items-center gap-2 px-5 py-2.5 bg-brand-green text-white font-semibold
+                       text-sm rounded-lg hover:bg-brand-dark transition-colors
+                       disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ minHeight: 44 }}>
+            {inviteLoading
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+              : <><Send className="w-4 h-4" /> Send Invite</>}
+          </button>
+        </div>
+        {selectedRole && (
+          <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+            <span className="font-semibold text-gray-700">{selectedRole.label}: </span>
+            {selectedRole.description}
+          </p>
+        )}
       </form>
 
       {/* Team members list */}
