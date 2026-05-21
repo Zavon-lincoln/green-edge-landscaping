@@ -59,6 +59,20 @@ export function addLeadNote(id, text) {
   return updated
 }
 
+export function updateLeadAppointment(id, preferredDate, preferredTime) {
+  const leads = getLeads()
+  const updated = leads.map(l => {
+    if (l.id !== id) return l
+    const dateStr = preferredDate
+      ? new Date(preferredDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'TBD'
+    const entry = { text: `Appointment updated to ${dateStr}${preferredTime ? ' at ' + preferredTime : ''}`, type: 'status', timestamp: new Date().toISOString() }
+    return { ...l, preferredDate, preferredTime, activityLog: [...(l.activityLog || []), entry] }
+  })
+  localStorage.setItem(LEADS_KEY, JSON.stringify(updated))
+  return updated
+}
+
 export function updateLeadJobValue(id, jobValue) {
   const leads = getLeads()
   const updated = leads.map(l => l.id === id ? { ...l, jobValue: parseFloat(jobValue) || null } : l)
