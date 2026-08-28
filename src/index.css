@@ -348,3 +348,15 @@
 /* Replaced hardcoded rgba(45,106,79,...) with named shadow tokens */
 .btn-primary { box-shadow: var(--shadow-brand-sm); }
 .btn-primary:hover { box-shadow: var(--shadow-brand-lg); transform: translateY(-3px); }
+
+
+/* Accessibility: visible focus indicator for keyboard navigation */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--action-primary);
+  outline-offset: 2px;
+}
